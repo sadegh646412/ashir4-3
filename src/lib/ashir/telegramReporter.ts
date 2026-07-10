@@ -16,7 +16,7 @@ export const ASHIR_MAIN_KEYBOARD = {
     [{ text: "💰 سود/ضرر کل" }, { text: "🗂 آخرین معاملات" }],
     [{ text: "🛡️ ریسک و قفل سود" }, { text: "🔍 چرا معامله باز نشد؟" }],
     [{ text: "📊 وضعیت کلی" }, { text: "📈 پوزیشن‌های باز" }],
-    [{ text: "🧾 گزارش تحلیل عملکرد" }, { text: "🏆 ۵ ارز برتر فعلی" }],
+    [{ text: "🧾 گزارش تحلیل عملکرد" }, { text: "🏆 ۱۰ ارز برتر فعلی" }],
   ],
   resize_keyboard: true,
   is_persistent: true,
@@ -73,15 +73,6 @@ export class TelegramReporter {
         // اگر کاربر پیام را دستی پاک کرده باشد یا بیش از ۴۸ ساعت گذشته باشد، تلگرام خطا می‌دهد؛ نادیده می‌گیریم
       }
     }, delayMs);
-  }
-
-  /** پیام «این اسکن چه ارزهایی را برای تحلیل عمیق انتخاب کرد» — به‌صورت خودکار پس از ۱ دقیقه حذف می‌شود */
-  async sendScannedCoins(symbols: string[]) {
-    if (symbols.length === 0) return false;
-    const list = symbols.slice(0, 40).map((s) => `• ${s}`).join("\n");
-    const more = symbols.length > 40 ? `\n... و ${symbols.length - 40} نماد دیگر` : "";
-    const msg = `🔎 <b>نمادهای انتخاب‌شده در این اسکن (${symbols.length})</b>\n━━━━━━━━━━━━━━━━━━\n${list}${more}\n━━━━━━━━━━━━━━━━━━\n<i>این پیام تا ۱ دقیقه دیگر خودکار حذف می‌شود.</i>`;
-    return this.send(msg, { autoDeleteMs: 60000 });
   }
 
   private _contract(s: string): string {
@@ -269,19 +260,19 @@ ${emoji} <b>#${s}/USDT | ${actionText}</b> ${stars}
   }
 
   async sendCoinRotationReport(report: CoinRotationReport) {
-    const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
-    let msg = `🏆 <b>چرخش هفتگی ۵ ارز برتر (TrendPulse)</b>
+    const rankIcon = (i: number) => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+    let msg = `🏆 <b>چرخش هفتگی ۱۰ ارز برتر (TrendPulse)</b>
 ━━━━━━━━━━━━━━━━━━━━
 📡 از میان ${report.universeSize} نماد صرافی، ${report.liquidityShortlistSize} نماد پرنقدینگی (۱ سال اخیر) انتخاب و بک‌تست شدند.
 📊 ${report.backtestedCount} نماد بک‌تست کامل شدند، ${report.qualifiedCount} نماد حداقل ${report.minTradesRequired} معامله در پنجره‌ی ${report.backtestWindowDays} روزه داشتند.
 ━━━━━━━━━━━━━━━━━━━━
 `;
 
-    if (report.top5.length === 0) {
+    if (report.topCoins.length === 0) {
       msg += "⚠️ هیچ نمادی واجد شرایط کافی برای معرفی نبود. معیارها را بازبینی کنید یا هفته‌ی بعد دوباره تلاش می‌شود.\n";
     } else {
-      report.top5.forEach((c, idx) => {
-        msg += `${medals[idx] || "🔹"} <b>${c.clean}</b>
+      report.topCoins.forEach((c, idx) => {
+        msg += `${rankIcon(idx)} <b>${c.clean}</b>
    نرخ برد: <b>${c.winRate.toFixed(1)}٪</b> | فاکتور سود: ${c.profitFactorLabel} | معاملات: ${c.trades}
    میانگین R: ${c.avgRMultiple.toFixed(2)} | بازده کل بک‌تست: ${c.totalReturnPct.toFixed(1)}٪ | افت سرمایه: ${c.maxDrawdownPct.toFixed(1)}٪
 `;
