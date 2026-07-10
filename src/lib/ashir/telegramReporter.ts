@@ -16,7 +16,7 @@ export const ASHIR_MAIN_KEYBOARD = {
     [{ text: "💰 سود/ضرر کل" }, { text: "🗂 آخرین معاملات" }],
     [{ text: "🛡️ ریسک و قفل سود" }, { text: "🔍 چرا معامله باز نشد؟" }],
     [{ text: "📊 وضعیت کلی" }, { text: "📈 پوزیشن‌های باز" }],
-    [{ text: "🧾 گزارش تحلیل عملکرد" }],
+    [{ text: "🧾 گزارش تحلیل عملکرد" }, { text: "🏆 ۵ ارز برتر فعلی" }],
   ],
   resize_keyboard: true,
   is_persistent: true,
@@ -35,7 +35,7 @@ export class TelegramReporter {
     this.on = !!(token && chatId);
   }
 
-  async send(text: string, options?: { keyboard?: boolean; chatId?: string }) {
+  async send(text: string, options?: { keyboard?: boolean; chatId?: string; autoDeleteMs?: number }) {
     const showKeyboard = options?.keyboard !== false; // shown by default on every message
     const targetChatId = options?.chatId || this.chatId;
 
@@ -44,16 +44,44 @@ export class TelegramReporter {
       return false;
     }
     try {
-      await axios.post(`https://api.telegram.org/bot${this.token}/sendMessage`, {
+      const resp = await axios.post(`https://api.telegram.org/bot${this.token}/sendMessage`, {
         chat_id: targetChatId,
         text: text.slice(0, 4000),
         parse_mode: "HTML",
         reply_markup: showKeyboard ? ASHIR_MAIN_KEYBOARD : undefined,
       }, { timeout: 15000 });
+
+      const messageId = resp?.data?.result?.message_id;
+      if (options?.autoDeleteMs && messageId) {
+        this._scheduleDelete(targetChatId, messageId, options.autoDeleteMs);
+      }
       return true;
     } catch (e) {
       return false;
     }
+  }
+
+  /** حذف خودکار یک پیام تلگرام پس از گذشت مدت زمان مشخص (پیش‌فرض استفاده‌شونده: ۱ دقیقه) */
+  private _scheduleDelete(chatId: string, messageId: number, delayMs: number) {
+    setTimeout(async () => {
+      try {
+        await axios.post(`https://api.telegram.org/bot${this.token}/deleteMessage`, {
+          chat_id: chatId,
+          message_id: messageId,
+        }, { timeout: 15000 });
+      } catch {
+        // اگر کاربر پیام را دستی پاک کرده باشد یا بیش از ۴۸ ساعت گذشته باشد، تلگرام خطا می‌دهد؛ نادیده می‌گیریم
+      }
+    }, delayMs);
+  }
+
+  /** پیام «این اسکن چه ارزهایی را برای تحلیل عمیق انتخاب کرد» — به‌صورت خودکار پس از ۱ دقیقه حذف می‌شود */
+  async sendScannedCoins(symbols: string[]) {
+    if (symbols.length === 0) return false;
+    const list = symbols.slice(0, 40).map((s) => `• ${s}`).join("\n");
+    const more = symbols.length > 40 ? `\n... و ${symbols.length - 40} نماد دیگر` : "";
+    const msg = `🔎 <b>نمادهای انتخاب‌شده در این اسکن (${symbols.length})</b>\n━━━━━━━━━━━━━━━━━━\n${list}${more}\n━━━━━━━━━━━━━━━━━━\n<i>این پیام تا ۱ دقیقه دیگر خودکار حذف می‌شود.</i>`;
+    return this.send(msg, { autoDeleteMs: 60000 });
   }
 
   private _contract(s: string): string {
