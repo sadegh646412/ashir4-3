@@ -58,9 +58,9 @@ export class WaterfallScanner {
   public riskReductionMap: Record<string, { until: number; startedAt: number; sizeFactor: number; extraConfidence: number }> = {};
   public diagnosticLogs: { id: string; time: number; symbol: string; type: string; title: string; message: string; actionTaken: string }[] = [];
 
-  // 🎯 چرخش هفتگی ۵ ارز برتر (Coin Rotation): وقتی فعال باشد، اسکن فقط روی
-  // نمادهایی که در آخرین بک‌تست بهترین نرخ برد را داشته‌اند انجام می‌شود.
-  public coinRotationEnabled = false;
+  // 🎯 چرخش هفتگی ۱۰ ارز برتر (Coin Rotation): به‌صورت پیش‌فرض فعال است — اسکن فقط
+  // روی نمادهایی انجام می‌شود که در آخرین بک‌تست بهترین نرخ برد را داشته‌اند.
+  public coinRotationEnabled = true;
   public selectedCoins: CoinBacktestSummary[] = [];
   public lastRotationAt: number | null = null;
   public lastRotationReport: CoinRotationReport | null = null;
@@ -386,7 +386,7 @@ ${exitEmoji} <b>گزارش تسویه معامله تک مرحله‌ای (${exi
       this.diagnosticLogs = state.diagnosticLogs || [];
       this.strategy = state.strategy && (state.strategy === "strict_elitescalp" || state.strategy === "active_goldenscalp" || state.strategy === "auto_cortex" || state.strategy === "auto") ? state.strategy : "auto";
       this.welcomeSent = !!state.welcomeSent;
-      this.coinRotationEnabled = !!state.coinRotationEnabled;
+      this.coinRotationEnabled = state.coinRotationEnabled !== undefined ? !!state.coinRotationEnabled : true;
       this.selectedCoins = state.selectedCoins || [];
       this.lastRotationAt = state.lastRotationAt || null;
       
@@ -408,7 +408,7 @@ ${exitEmoji} <b>گزارش تسویه معامله تک مرحله‌ای (${exi
   }
 
   /**
-   * اجرای کامل فرآیند انتخاب ۵ ارز برتر: غربال نقدینگی یک‌ساله + بک‌تست TrendPulse
+   * اجرای کامل فرآیند انتخاب ۱۰ ارز برتر: غربال نقدینگی یک‌ساله + بک‌تست TrendPulse
    * روی کاندیداها + انتخاب بهترین‌ها بر اساس نرخ برد واقعی. نتیجه ذخیره و به
    * تلگرام ارسال می‌شود. این عملیات چند دقیقه طول می‌کشد (به دلیل محدودیت نرخ
    * درخواست صرافی XT) و در پس‌زمینه، مستقل از چرخه‌ی اصلی اسکن اجرا می‌شود.
@@ -428,10 +428,10 @@ ${exitEmoji} <b>گزارش تسویه معامله تک مرحله‌ای (${exi
     try {
       const report = await selectTopCoins(this.client);
       this.lastRotationReport = report;
-      this.selectedCoins = report.top5;
+      this.selectedCoins = report.topCoins;
       this.lastRotationAt = Date.now();
 
-      this._addLog(`🏆 چرخش ارز کامل شد: از ${report.universeSize} نماد، ${report.liquidityShortlistSize} کاندیدای پرنقدینگی بک‌تست شدند و ${report.qualifiedCount} نماد واجد شرایط بودند.`);
+      this._addLog(`🏆 چرخش ارز کامل شد: از ${report.universeSize} نماد، ${report.liquidityShortlistSize} کاندیدای پرنقدینگی بک‌تست شدند و ${report.qualifiedCount} نماد واجد شرایط بودند. ${report.topCoins.length} نماد برتر برای هفته‌ی آینده انتخاب شد.`);
       await this.reporter.sendCoinRotationReport(report);
       await this.saveState();
       return report;
@@ -955,7 +955,6 @@ ${exitEmoji} <b>گزارش تسویه معامله تک مرحله‌ای (${exi
       this.lastScanTime = Date.now();
       this.currentProgress = "اسکن کامل شد - در حالت استراحت تا چرخه بعدی.";
       this._addLog(`Scan #${this.count} complete. Signals generated: ${signals.length}`);
-      this.reporter.sendScannedCoins(obCandidates.map((c) => c.pair.clean)).catch(() => {});
       await this.saveState();
       return signals;
     } catch (e: any) {
