@@ -203,7 +203,7 @@ export class TelegramBotHandler {
       await this._reply(chatId, this._buildPerformanceReport());
       return;
     }
-    if (text.includes("۵ ارز برتر") || text.includes("ارزهای برتر")) {
+    if (text.includes("۱۰ ارز برتر") || text.includes("ارزهای برتر")) {
       await this._reply(chatId, this._buildTopCoins());
       return;
     }
@@ -361,20 +361,20 @@ export class TelegramBotHandler {
     return out.trim();
   }
 
-  // ─── 🏆 ۵ ارز برتر فعلی (چرخش هفتگی) ───────────────────────────
+  // ─── 🏆 ۱۰ ارز برتر فعلی (چرخش هفتگی) ──────────────────────────
   private _buildTopCoins(): string {
     const s = this.scanner;
     if (!s.coinRotationEnabled) {
-      return "🏆 <b>۵ ارز برتر فعلی</b>\n━━━━━━━━━━━━━━━━━━\nحالت «چرخش ۵ ارز برتر» فعال نیست، پس ربات روی کل بازار معامله می‌کند، نه یک لیست ثابت.";
+      return "🏆 <b>۱۰ ارز برتر فعلی</b>\n━━━━━━━━━━━━━━━━━━\nحالت «چرخش ۱۰ ارز برتر» فعال نیست، پس ربات روی کل بازار معامله می‌کند، نه یک لیست ثابت.";
     }
     if (!s.selectedCoins || s.selectedCoins.length === 0) {
-      return "🏆 <b>۵ ارز برتر فعلی</b>\n━━━━━━━━━━━━━━━━━━\nهنوز هیچ چرخشی انجام نشده — نتیجه پس از اولین بررسی هفتگی (یا اجرای دستی) اینجا نمایش داده می‌شود.";
+      return "🏆 <b>۱۰ ارز برتر فعلی</b>\n━━━━━━━━━━━━━━━━━━\nهنوز هیچ چرخشی انجام نشده — نتیجه پس از اولین بررسی (چند دقیقه پس از شروع ربات) اینجا نمایش داده می‌شود.";
     }
-    const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+    const rankIcon = (i: number) => i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
     const lastRun = s.lastRotationAt ? format(new Date(s.lastRotationAt), "yyyy/MM/dd HH:mm") : "-";
-    let out = `🏆 <b>۵ ارز برتر فعلی (بر اساس آخرین بک‌تست)</b>\n━━━━━━━━━━━━━━━━━━\n🕒 آخرین بررسی: ${lastRun}\n\n`;
+    let out = `🏆 <b>۱۰ ارز برتر فعلی (بر اساس آخرین بک‌تست)</b>\n━━━━━━━━━━━━━━━━━━\n🕒 آخرین بررسی: ${lastRun}\n\n`;
     s.selectedCoins.forEach((c, idx) => {
-      out += `${medals[idx] || "🔹"} <b>${c.clean}</b> — نرخ برد ${c.winRate.toFixed(1)}٪ | فاکتور سود ${c.profitFactorLabel} | ${c.trades} معامله\n`;
+      out += `${rankIcon(idx)} <b>${c.clean}</b> — نرخ برد ${c.winRate.toFixed(1)}٪ | فاکتور سود ${c.profitFactorLabel} | ${c.trades} معامله\n`;
     });
     out += `\n📌 معاملات زنده تا چرخش بعدی فقط روی همین نمادهاست.`;
     return out.trim();
