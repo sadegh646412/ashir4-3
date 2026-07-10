@@ -955,6 +955,7 @@ ${exitEmoji} <b>گزارش تسویه معامله تک مرحله‌ای (${exi
       this.lastScanTime = Date.now();
       this.currentProgress = "اسکن کامل شد - در حالت استراحت تا چرخه بعدی.";
       this._addLog(`Scan #${this.count} complete. Signals generated: ${signals.length}`);
+      this.reporter.sendScannedCoins(obCandidates.map((c) => c.pair.clean)).catch(() => {});
       await this.saveState();
       return signals;
     } catch (e: any) {
