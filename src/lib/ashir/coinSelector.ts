@@ -50,7 +50,7 @@ export interface CoinRotationReport {
   liquidityShortlistSize: number;
   backtestedCount: number;
   qualifiedCount: number;
-  top5: CoinBacktestSummary[];
+  topCoins: CoinBacktestSummary[];
   allQualified: CoinBacktestSummary[];
   minTradesRequired: number;
   backtestWindowDays: number;
@@ -170,7 +170,7 @@ export async function backtestShortlist(
   return { qualified, backtestedCount };
 }
 
-/** ارکستراسیون کامل: غربال نقدینگی + بک‌تست + انتخاب ۵ ارز برتر */
+/** ارکستراسیون کامل: غربال نقدینگی + بک‌تست + انتخاب ۱۰ ارز برتر */
 export async function selectTopCoins(
   client: XTClient,
   opts: {
@@ -181,8 +181,8 @@ export async function selectTopCoins(
     minTrades?: number;
   } = {}
 ): Promise<CoinRotationReport> {
-  const topCount = opts.topCount ?? 5;
-  const liquidityShortlistSize = opts.liquidityShortlistSize ?? 60;
+  const topCount = opts.topCount ?? 10;
+  const liquidityShortlistSize = opts.liquidityShortlistSize ?? 80;
   const backtestWindowDays = opts.backtestWindowDays ?? 45;
   const minTrades = opts.minTrades ?? 15;
 
@@ -215,7 +215,7 @@ export async function selectTopCoins(
     liquidityShortlistSize: shortlist.length,
     backtestedCount,
     qualifiedCount: qualified.length,
-    top5: qualified.slice(0, topCount),
+    topCoins: qualified.slice(0, topCount),
     allQualified: qualified,
     minTradesRequired: minTrades,
     backtestWindowDays,
