@@ -134,7 +134,7 @@ export class TelegramBotHandler {
 
   private async _reply(chatId: string, text: string) {
     try {
-      await axios.post(
+      const resp = await axios.post(
         `https://api.telegram.org/bot${this.token}/sendMessage`,
         {
           chat_id: chatId,
@@ -144,9 +144,27 @@ export class TelegramBotHandler {
         },
         { timeout: 15000 }
       );
+      const messageId = resp?.data?.result?.message_id;
+      if (messageId) {
+        this._scheduleDelete(chatId, messageId, 60000);
+      }
     } catch (e: any) {
       console.error("[TelegramBot] Failed to send reply:", e.message || e);
     }
+  }
+
+  /** حذف خودکار پاسخ‌های کیبورد شیشه‌ای پس از ۱ دقیقه، تا چت شلوغ نشود */
+  private _scheduleDelete(chatId: string, messageId: number, delayMs: number) {
+    setTimeout(async () => {
+      try {
+        await axios.post(`https://api.telegram.org/bot${this.token}/deleteMessage`, {
+          chat_id: chatId,
+          message_id: messageId,
+        }, { timeout: 15000 });
+      } catch {
+        // پیام از قبل حذف شده یا بیش از ۴۸ ساعت گذشته — نادیده می‌گیریم
+      }
+    }, delayMs);
   }
 
   private async _route(chatId: string, text: string) {
@@ -183,6 +201,10 @@ export class TelegramBotHandler {
     }
     if (text.includes("گزارش تحلیل عملکرد") || text.includes("تحلیل عملکرد")) {
       await this._reply(chatId, this._buildPerformanceReport());
+      return;
+    }
+    if (text.includes("۵ ارز برتر") || text.includes("ارزهای برتر")) {
+      await this._reply(chatId, this._buildTopCoins());
       return;
     }
 
@@ -336,6 +358,25 @@ export class TelegramBotHandler {
         out += `• <b>${l.symbol}</b> [${l.type}] ${l.title} — ${l.actionTaken} | ⏰ ${t}\n`;
       }
     }
+    return out.trim();
+  }
+
+  // ─── 🏆 ۵ ارز برتر فعلی (چرخش هفتگی) ───────────────────────────
+  private _buildTopCoins(): string {
+    const s = this.scanner;
+    if (!s.coinRotationEnabled) {
+      return "🏆 <b>۵ ارز برتر فعلی</b>\n━━━━━━━━━━━━━━━━━━\nحالت «چرخش ۵ ارز برتر» فعال نیست، پس ربات روی کل بازار معامله می‌کند، نه یک لیست ثابت.";
+    }
+    if (!s.selectedCoins || s.selectedCoins.length === 0) {
+      return "🏆 <b>۵ ارز برتر فعلی</b>\n━━━━━━━━━━━━━━━━━━\nهنوز هیچ چرخشی انجام نشده — نتیجه پس از اولین بررسی هفتگی (یا اجرای دستی) اینجا نمایش داده می‌شود.";
+    }
+    const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+    const lastRun = s.lastRotationAt ? format(new Date(s.lastRotationAt), "yyyy/MM/dd HH:mm") : "-";
+    let out = `🏆 <b>۵ ارز برتر فعلی (بر اساس آخرین بک‌تست)</b>\n━━━━━━━━━━━━━━━━━━\n🕒 آخرین بررسی: ${lastRun}\n\n`;
+    s.selectedCoins.forEach((c, idx) => {
+      out += `${medals[idx] || "🔹"} <b>${c.clean}</b> — نرخ برد ${c.winRate.toFixed(1)}٪ | فاکتور سود ${c.profitFactorLabel} | ${c.trades} معامله\n`;
+    });
+    out += `\n📌 معاملات زنده تا چرخش بعدی فقط روی همین نمادهاست.`;
     return out.trim();
   }
 }
